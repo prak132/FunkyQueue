@@ -46,7 +46,7 @@ export default function MachinistPanel() {
       .from('jobs')
       .select('*')
       .eq('claimed_by', user.id)
-      .neq('status', 'Completed') // Only show active jobs
+      .neq('status', 'Completed')
       .order('created_at', { ascending: true })
     
     if (data) setJobs(data)

@@ -11,10 +11,7 @@ type Profile = {
   full_name: string
   role: string
   is_approved: boolean
-  email?: string // We might need to join with auth.users or store email in profiles if needed, but let's stick to what we have. 
-                 // Actually, for admin view, seeing email is helpful. 
-                 // Since we can't easily join auth.users from client, we'll rely on full_name or add email to profiles trigger if we want.
-                 // For now, let's just show full_name.
+  email?: string
 }
 
 export default function AdminPage() {
@@ -39,7 +36,7 @@ export default function AdminPage() {
         .single()
 
       if (profile?.role !== 'admin') {
-        router.push('/') // Redirect non-admins
+        router.push('/')
         return
       }
 
@@ -53,7 +50,7 @@ export default function AdminPage() {
     const { data } = await supabase
       .from('profiles')
       .select('*')
-      .order('created_at', { ascending: false } as any) // created_at might not be in types yet if we didn't add it to TS types, but it's in DB
+      .order('created_at', { ascending: false } as any)
     
     if (data) {
         setUsers(data)
@@ -70,7 +67,6 @@ export default function AdminPage() {
     if (error) {
       alert('Error updating user: ' + error.message)
     } else {
-      // Optimistic update
       setUsers(users.map(u => u.id === userId ? { ...u, is_approved: !currentStatus } : u))
     }
   }

@@ -25,6 +25,9 @@ export default function ForgotPasswordPage() {
       toast.error('Error: ' + error.message)
     } else {
       toast.success('Check your email for the password reset link!')
+      setTimeout(() => {
+        window.location.href = '/login'
+      }, 2000)
     }
     setLoading(false)
   }

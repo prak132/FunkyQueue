@@ -24,7 +24,7 @@ export default function Home() {
   const [camJobs, setCamJobs] = useState<Job[]>([])
   const [machiningJobs, setMachiningJobs] = useState<Job[]>([])
   const [user, setUser] = useState<User | null>(null)
-  const [isApproved, setIsApproved] = useState<boolean | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const supabase = createClient()
   const router = useRouter()
 
@@ -37,19 +37,18 @@ export default function Home() {
         }
         setUser(user)
         
-        // Check approval status
+        // Check admin status
         const { data: profile } = await supabase
             .from('profiles')
-            .select('is_approved')
+            .select('role')
             .eq('id', user.id)
             .single()
         
-        if (profile) {
-            setIsApproved(profile.is_approved)
-            if (profile.is_approved) {
-                fetchJobs()
-            }
+        if (profile && profile.role === 'admin') {
+            setIsAdmin(true)
         }
+
+        fetchJobs()
     }
     init()
   }, [router, supabase])
@@ -76,7 +75,7 @@ export default function Home() {
             status: 'In Progress'
         })
         .eq('id', jobId)
-        .eq('status', 'Pending') // Safety check
+        .eq('status', 'Pending')
 
     if (error) {
         toast.error('Failed to claim job: ' + error.message)
@@ -86,20 +85,50 @@ export default function Home() {
     }
   }
 
-  if (isApproved === false) {
-      return (
-        <div className="min-h-screen flex items-center justify-center p-4">
-            <Card className="max-w-md w-full p-8 text-center space-y-6 border-yellow-500/50 bg-yellow-500/10">
-                <div className="text-6xl">⏳</div>
-                <h1 className="text-2xl font-bold text-funky-yellow">Account Pending Approval</h1>
-                <p className="text-funky-text-dim">
-                    Your account has been created but is waiting for admin approval. 
-                    Please contact an administrator or check back later.
-                </p>
-                <Button variant="outline" onClick={() => router.push('/login')}>Back to Login</Button>
-            </Card>
+  const handleDelete = async (jobId: string) => {
+    if (!confirm('Are you sure you want to delete this job? This action cannot be undone.')) return
+
+    const { error } = await supabase
+        .from('jobs')
+        .delete()
+        .eq('id', jobId)
+
+    if (error) {
+        toast.error('Failed to delete job: ' + error.message)
+    } else {
+        toast.success('Job deleted successfully.')
+        fetchJobs()
+    }
+  }
+
+  const renderActionButtons = (job: Job) => {
+    return (
+        <div className="flex items-center gap-2">
+            {job.status === 'Pending' && (
+                <Button 
+                    size="sm" 
+                    variant="secondary" 
+                    className="h-7 text-xs"
+                    onClick={() => handleClaim(job.id)}
+                >
+                    Claim
+                </Button>
+            )}
+            {job.status === 'In Progress' && (
+                <span className="text-xs text-gray-500 italic">Claimed</span>
+            )}
+            {isAdmin && (
+                <Button
+                    size="sm"
+                    variant="outline" // Use outline or a destructive variant if available
+                    className="h-7 text-xs text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
+                    onClick={() => handleDelete(job.id)}
+                >
+                    Delete
+                </Button>
+            )}
         </div>
-      )
+    )
   }
 
   return (
@@ -152,19 +181,7 @@ export default function Home() {
                                 </td>
                                 <td className="px-4 py-3">{job.est_time || '-'}</td>
                                 <td className="px-4 py-3">
-                                    {job.status === 'Pending' && (
-                                        <Button 
-                                            size="sm" 
-                                            variant="secondary" 
-                                            className="h-7 text-xs"
-                                            onClick={() => handleClaim(job.id)}
-                                        >
-                                            Claim
-                                        </Button>
-                                    )}
-                                    {job.status === 'In Progress' && (
-                                        <span className="text-xs text-gray-500 italic">Claimed</span>
-                                    )}
+                                    {renderActionButtons(job)}
                                 </td>
                             </tr>
                         ))}
@@ -219,19 +236,7 @@ export default function Home() {
                                 </td>
                                 <td className="px-4 py-3">{job.est_time || '-'}</td>
                                 <td className="px-4 py-3">
-                                    {job.status === 'Pending' && (
-                                        <Button 
-                                            size="sm" 
-                                            variant="secondary" 
-                                            className="h-7 text-xs"
-                                            onClick={() => handleClaim(job.id)}
-                                        >
-                                            Claim
-                                        </Button>
-                                    )}
-                                    {job.status === 'In Progress' && (
-                                        <span className="text-xs text-gray-500 italic">Claimed</span>
-                                    )}
+                                    {renderActionButtons(job)}
                                 </td>
                             </tr>
                         ))}

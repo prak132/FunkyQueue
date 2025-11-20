@@ -16,7 +16,6 @@ export default function Navbar() {
     { href: '/queue/machining/add', label: 'Add Machining', icon: PlusSquare },
   ]
 
-  // Mobile Bottom Nav
   const MobileNav = () => (
     <nav className="fixed bottom-0 left-0 right-0 bg-funky-black border-t border-funky-dark p-4 md:hidden z-50">
       <ul className="flex justify-around items-center">
@@ -49,7 +48,6 @@ export default function Navbar() {
     </nav>
   )
 
-  // Desktop Top Nav
   const DesktopNav = () => (
     <nav className="hidden md:flex fixed top-0 left-0 right-0 bg-funky-black/80 backdrop-blur-md border-b border-funky-dark px-8 py-4 z-50 justify-between items-center">
       <div className="flex items-center gap-8">
@@ -70,7 +68,6 @@ export default function Navbar() {
                     </li>
                 )
             })}
-            {/* Admin Link - Only show on desktop here, or maybe check role? For now just link */}
             <li>
                 <Link href="/admin" className={clsx(
                     "text-sm font-medium transition-colors hover:text-funky-yellow",

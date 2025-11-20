@@ -140,7 +140,7 @@ export default function AddMachiningJobPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-funky-text-dim mb-1">Upload Drawing (Optional)</label>
+            <label className="block text-sm font-medium text-funky-text-dim mb-1">Upload Machinist Drawing (Optional)</label>
             <Input
               type="file"
               accept=".pdf,.png,.jpg,.jpeg"

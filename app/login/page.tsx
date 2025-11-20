@@ -21,17 +21,24 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    if (error) {
-      setError(error.message)
+      if (error) {
+        setError(error.message)
+        setLoading(false)
+      } else {
+        router.push('/')
+        router.refresh()
+        setTimeout(() => setLoading(false), 5000) 
+      }
+    } catch (err) {
+      setError('An unexpected error occurred')
       setLoading(false)
-    } else {
-      router.push('/')
-      router.refresh()
+      console.error(err)
     }
   }
 
@@ -68,8 +75,8 @@ export default function LoginPage() {
               placeholder="••••••••"
               autoComplete="current-password"
             />
-            <div className="flex justify-end mt-1">
-                <Link href="/forgot-password" className="text-xs text-funky-yellow hover:underline">
+            <div className="flex justify-end mt-1 relative z-10">
+                <Link href="/forgot-password" className="text-xs text-funky-yellow hover:underline cursor-pointer">
                     Forgot Password?
                 </Link>
             </div>

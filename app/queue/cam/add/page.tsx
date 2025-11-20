@@ -61,7 +61,7 @@ export default function AddCamJobPage() {
       description: description,
       est_hours: estHours,
       est_minutes: estMinutes,
-      est_time: `${estHours}h ${estMinutes}m`, // Keep for backward compatibility or display
+      est_time: `${estHours}h ${estMinutes}m`,
       g_code_url: gCodeUrl,
       user_id: user.id,
       status: 'Pending'

@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import Link from 'next/link'
 
+import { toast } from 'sonner'
+
 export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -36,9 +38,7 @@ export default function SignupPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      // Redirect to a pending approval page or show a message
-      // For now, we'll just show an alert or redirect to login with a message
-      alert('Signup successful! Please wait for admin approval.')
+      toast.success('Signup successful!')
       router.push('/login')
     }
   }
