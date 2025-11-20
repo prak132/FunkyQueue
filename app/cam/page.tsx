@@ -22,7 +22,7 @@ type Job = {
   display_order: number | null
 }
 
-export default function Home() {
+export default function CAMQueue() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [user, setUser] = useState<User | null>(null)
   const [userRole, setUserRole] = useState<string>('user')
@@ -59,7 +59,7 @@ export default function Home() {
     const { data: jobs } = await supabase
         .from('jobs')
         .select('*')
-        .eq('type', 'Machining')
+        .eq('type', 'CAM')
     
     if (jobs) {
         const sortedJobs = jobs.sort((a, b) => {
@@ -70,11 +70,9 @@ export default function Home() {
           } else if (b.display_order !== null) {
             return 1
           }
-          
           const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 2
           const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 2
           if (aPriority !== bPriority) return aPriority - bPriority
-          
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         })
         
@@ -223,7 +221,7 @@ export default function Home() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
       <header className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-funky-yellow">Machining Queue</h1>
+        <h1 className="text-3xl font-bold text-funky-yellow">CAM Queue</h1>
         <div className="flex items-center gap-4">
             <Link href="/machinist">
                 <Button variant="outline" size="sm">My Active Jobs</Button>
@@ -235,8 +233,8 @@ export default function Home() {
         <Card className="bg-white text-black min-h-[400px] p-0 overflow-hidden">
            <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
               <span className="font-bold text-lg">Queue</span>
-              <Link href="/queue/machining/add">
-                  <Button variant="primary" size="sm">Add Machining Job</Button>
+              <Link href="/queue/cam/add">
+                  <Button variant="primary" size="sm">Add CAM Job</Button>
               </Link>
            </div>
            <div className="overflow-x-auto">
@@ -295,7 +293,7 @@ export default function Home() {
                       {jobs.length === 0 && (
                           <tr>
                               <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                                  No Machining jobs in queue.
+                                  No CAM jobs in queue.
                               </td>
                           </tr>
                       )}

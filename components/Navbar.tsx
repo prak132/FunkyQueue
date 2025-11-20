@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, PlusSquare, Settings, User as UserIcon } from 'lucide-react'
+import { Home, PlusSquare, Settings, User as UserIcon, Activity } from 'lucide-react'
 import { clsx } from 'clsx'
 import UserDropdown from './UserDropdown'
 
@@ -10,7 +10,9 @@ export default function Navbar() {
   const pathname = usePathname()
 
   const links = [
-    { href: '/', label: 'Queue', icon: Home },
+    { href: '/', label: 'Machining', icon: Home },
+    { href: '/cam', label: 'CAM', icon: Settings },
+    { href: '/progress', label: 'Progress', icon: Activity },
     { href: '/machinist', label: 'My Jobs', icon: Settings },
     { href: '/queue/cam/add', label: 'Add CAM', icon: PlusSquare },
     { href: '/queue/machining/add', label: 'Add Machining', icon: PlusSquare },
@@ -34,7 +36,6 @@ export default function Navbar() {
             </li>
           )
         })}
-        {/* Profile Link for Mobile */}
         <li>
             <Link href="/account" className={clsx(
                 "flex flex-col items-center gap-1 p-2 rounded-lg transition-colors",

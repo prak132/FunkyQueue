@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
@@ -10,7 +10,7 @@ import { toast } from 'sonner'
 
 export default function AddMachiningJobPage() {
   const [partName, setPartName] = useState('')
-  const [requester, setRequester] = useState('')
+  const [requesterName, setRequesterName] = useState('')
   const [description, setDescription] = useState('')
   const [estHours, setEstHours] = useState(0)
   const [estMinutes, setEstMinutes] = useState(0)
@@ -18,6 +18,24 @@ export default function AddMachiningJobPage() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single()
+        
+        if (profile?.full_name) {
+          setRequesterName(profile.full_name)
+        }
+      }
+    }
+    fetchUserProfile()
+  }, [supabase])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,7 +75,7 @@ export default function AddMachiningJobPage() {
     const { error } = await supabase.from('jobs').insert({
       type: 'Machining',
       part_name: partName,
-      requester: requester,
+      requester: requesterName,
       description: description,
       est_hours: estHours,
       est_minutes: estMinutes,
@@ -89,16 +107,6 @@ export default function AddMachiningJobPage() {
               value={partName}
               onChange={(e) => setPartName(e.target.value)}
               placeholder="e.g. Shooter Hood"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-funky-text-dim mb-1">Requester Name</label>
-            <Input
-              required
-              value={requester}
-              onChange={(e) => setRequester(e.target.value)}
-              placeholder="Your Name"
             />
           </div>
 

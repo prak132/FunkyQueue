@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/client'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 type Profile = {
   id: string
@@ -28,7 +29,6 @@ export default function AdminPage() {
         return
       }
 
-      // Check if user is admin
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
@@ -50,12 +50,26 @@ export default function AdminPage() {
     const { data } = await supabase
       .from('profiles')
       .select('*')
-      .order('created_at', { ascending: false } as any)
+      .order('full_name', { ascending: true })
     
     if (data) {
         setUsers(data)
     }
     setLoading(false)
+  }
+
+  const changeUserRole = async (userId: string, newRole: string) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role: newRole })
+      .eq('id', userId)
+
+    if (error) {
+      toast.error('Error updating user role: ' + error.message)
+    } else {
+      toast.success('User role updated successfully')
+      setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u))
+    }
   }
 
   const toggleApproval = async (userId: string, currentStatus: boolean) => {
@@ -65,8 +79,9 @@ export default function AdminPage() {
       .eq('id', userId)
 
     if (error) {
-      alert('Error updating user: ' + error.message)
+      toast.error('Error updating user: ' + error.message)
     } else {
+      toast.success('User approval status updated')
       setUsers(users.map(u => u.id === userId ? { ...u, is_approved: !currentStatus } : u))
     }
   }
@@ -95,7 +110,18 @@ export default function AdminPage() {
                     {users.map((user) => (
                         <tr key={user.id} className="border-b border-gray-200 hover:bg-gray-50">
                             <td className="px-4 py-3 font-medium">{user.full_name || 'No Name'}</td>
-                            <td className="px-4 py-3 uppercase text-xs font-bold text-gray-500">{user.role}</td>
+                            <td className="px-4 py-3">
+                                <select
+                                    className="px-3 py-2 rounded-lg border border-funky-dark bg-funky-black text-xs font-semibold uppercase text-funky-text hover:bg-funky-dark focus:outline-none focus:ring-2 focus:ring-funky-yellow transition-colors cursor-pointer"
+                                    value={user.role}
+                                    onChange={(e) => changeUserRole(user.id, e.target.value)}
+                                >
+                                    <option value="user" className="bg-funky-black text-funky-text">User</option>
+                                    <option value="machinist" className="bg-funky-black text-funky-text">Machinist</option>
+                                    <option value="designer" className="bg-funky-black text-funky-text">Designer</option>
+                                    <option value="admin" className="bg-funky-black text-funky-text">Admin</option>
+                                </select>
+                            </td>
                             <td className="px-4 py-3">
                                 <span className={`px-2 py-1 rounded-full text-xs font-semibold 
                                     ${user.is_approved ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
@@ -103,15 +129,13 @@ export default function AdminPage() {
                                 </span>
                             </td>
                             <td className="px-4 py-3">
-                                {user.role !== 'admin' && (
-                                    <Button 
-                                        size="sm" 
-                                        variant={user.is_approved ? "secondary" : "primary"}
-                                        onClick={() => toggleApproval(user.id, user.is_approved)}
-                                    >
-                                        {user.is_approved ? 'Revoke' : 'Approve'}
-                                    </Button>
-                                )}
+                                <Button 
+                                    size="sm" 
+                                    variant={user.is_approved ? "secondary" : "primary"}
+                                    onClick={() => toggleApproval(user.id, user.is_approved)}
+                                >
+                                    {user.is_approved ? 'Revoke' : 'Approve'}
+                                </Button>
                             </td>
                         </tr>
                     ))}
