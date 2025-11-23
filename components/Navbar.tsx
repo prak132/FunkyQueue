@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, PlusSquare, Settings, User as UserIcon, Activity } from 'lucide-react'
+import { Home, PlusSquare, Settings, User as UserIcon, Activity, CheckCircle } from 'lucide-react'
 import { clsx } from 'clsx'
 import UserDropdown from './UserDropdown'
 
@@ -10,18 +10,20 @@ export default function Navbar() {
   const pathname = usePathname()
 
   const links = [
-    { href: '/', label: 'Machining', icon: Home },
+    { href: '/', label: 'Dashboard', icon: Home },
+    { href: '/machining', label: 'Machining', icon: Settings },
     { href: '/cam', label: 'CAM', icon: Settings },
     { href: '/progress', label: 'Progress', icon: Activity },
     { href: '/machinist', label: 'My Jobs', icon: Settings },
     { href: '/queue/cam/add', label: 'Add CAM', icon: PlusSquare },
     { href: '/queue/machining/add', label: 'Add Machining', icon: PlusSquare },
+    { href: '/finished', label: 'Finished', icon: CheckCircle },
   ]
 
   const MobileNav = () => (
     <nav className="fixed bottom-0 left-0 right-0 bg-funky-black border-t border-funky-dark p-4 md:hidden z-50">
       <ul className="flex justify-around items-center">
-        {links.map((link) => {
+        {links.filter(link => ['/', '/machining', '/cam', '/machinist', '/finished'].includes(link.href)).map((link) => {
           const Icon = link.icon
           const isActive = pathname === link.href
           return (

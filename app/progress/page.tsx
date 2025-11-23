@@ -5,15 +5,7 @@ import { createClient } from '@/utils/supabase/client'
 import { Card } from '@/components/ui/Card'
 import { Activity } from 'lucide-react'
 
-type Job = {
-  id: string
-  type: 'CAM' | 'Machining'
-  part_name: string
-  requester: string
-  status: string
-  claimed_by: string | null
-  created_at: string
-}
+import { Job } from '@/types'
 
 type Profile = {
   id: string
@@ -54,7 +46,7 @@ export default function ProgressPage() {
     setLoading(false)
   }
 
-  const getClaimerName = (id: string | null) => {
+  const getClaimerName = (id: string | null | undefined) => {
     if (!id) return 'Unclaimed'
     return profiles[id] || 'Unknown User'
   }

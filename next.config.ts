@@ -14,6 +14,14 @@ const withPWA = withPWAInit({
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.supabase.co',
+      },
+    ],
+  },
 };
 
 export default withPWA(nextConfig);

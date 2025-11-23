@@ -10,18 +10,7 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { FileText, CheckCircle, XCircle, Clock, Upload } from 'lucide-react'
 
-type Job = {
-  id: string
-  type: 'CAM' | 'Machining'
-  part_name: string
-  requester: string
-  description: string
-  status: string
-  est_time: string
-  g_code_url?: string
-  drawing_url?: string
-  created_at: string
-}
+import { Job } from '@/types'
 
 export default function MachinistPanel() {
   const [jobs, setJobs] = useState<Job[]>([])
@@ -93,7 +82,8 @@ export default function MachinistPanel() {
         .from('jobs')
         .update({ 
             status: 'Completed', 
-            completion_image_url: publicUrl 
+            completion_image_url: publicUrl,
+            completed_at: new Date().toISOString() 
         })
         .eq('id', jobId)
 

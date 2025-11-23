@@ -6,26 +6,17 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
-import { User } from '@supabase/supabase-js'
+import { PlusSquare, Settings, CheckCircle, Activity, Clock } from 'lucide-react'
 
-type Job = {
-  id: string
-  type: 'CAM' | 'Machining'
-  part_name: string
-  requester: string
-  status: string
-  est_time: string
-  claimed_by: string | null
-  created_at: string
-  priority: 'Low' | 'Medium' | 'High' | 'Urgent'
-  display_order: number | null
-}
+import { Job } from '@/types'
 
-export default function Home() {
-  const [jobs, setJobs] = useState<Job[]>([])
-  const [user, setUser] = useState<User | null>(null)
-  const [userRole, setUserRole] = useState<string>('user')
+export default function Dashboard() {
+  const [recentJobs, setRecentJobs] = useState<Job[]>([])
+  const [stats, setStats] = useState({
+    activeJobs: 0,
+    completedToday: 0
+  })
+  const [loading, setLoading] = useState(true)
   const supabase = createClient()
   const router = useRouter()
 
@@ -36,274 +27,168 @@ export default function Home() {
             router.push('/login')
             return
         }
-        setUser(user)
-        
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single()
-        
-        if (profile?.role) {
-            setUserRole(profile.role)
-        }
-
-        fetchJobs()
+        fetchDashboardData()
     }
     init()
   }, [router, supabase])
 
-  const fetchJobs = async () => {
-    const priorityOrder = { 'Urgent': 0, 'High': 1, 'Medium': 2, 'Low': 3 }
-    
+  const fetchDashboardData = async () => {
     const { data: jobs } = await supabase
         .from('jobs')
         .select('*')
-        .eq('type', 'Machining')
+        .order('created_at', { ascending: false })
+        .limit(5)
     
-    if (jobs) {
-        const sortedJobs = jobs.sort((a, b) => {
-          if (a.display_order !== null && b.display_order !== null) {
-            if (a.display_order !== b.display_order) return a.display_order - b.display_order
-          } else if (a.display_order !== null) {
-            return -1
-          } else if (b.display_order !== null) {
-            return 1
-          }
-          
-          const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 2
-          const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 2
-          if (aPriority !== bPriority) return aPriority - bPriority
-          
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        })
-        
-        setJobs(sortedJobs)
-    }
-  }
+    if (jobs) setRecentJobs(jobs)
 
-  const handleClaim = async (jobId: string) => {
-    if (!user) return
-
-    const { error } = await supabase
+    const { count: activeCount } = await supabase
         .from('jobs')
-        .update({ 
-            claimed_by: user.id,
-            status: 'In Progress'
-        })
-        .eq('id', jobId)
-        .eq('status', 'Pending')
-
-    if (error) {
-        toast.error('Failed to claim job: ' + error.message)
-    } else {
-        toast.success('Job claimed! Head to the Machinist Panel.')
-        fetchJobs()
-    }
-  }
-
-  const handleDelete = async (jobId: string) => {
-    if (!confirm('Are you sure you want to delete this job? This action cannot be undone.')) return
-
-    const { error } = await supabase
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['Pending', 'In Progress'])
+    
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    const { count: completedCount } = await supabase
         .from('jobs')
-        .delete()
-        .eq('id', jobId)
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'Completed')
+        .gte('completed_at', today.toISOString())
 
-    if (error) {
-        toast.error('Failed to delete job: ' + error.message)
-    } else {
-        toast.success('Job deleted successfully.')
-        fetchJobs()
-    }
+    setStats({
+        activeJobs: activeCount || 0,
+        completedToday: completedCount || 0
+    })
+    setLoading(false)
   }
 
-  const handlePriorityChange = async (jobId: string, newPriority: string) => {
-    const { error } = await supabase
-      .from('jobs')
-      .update({ priority: newPriority })
-      .eq('id', jobId)
-
-    if (error) {
-      toast.error('Failed to update priority: ' + error.message)
-    } else {
-      toast.success('Priority updated')
-      fetchJobs()
-    }
-  }
-
-  const handleMoveUp = async (jobId: string) => {
-    const currentIndex = jobs.findIndex(j => j.id === jobId)
-    
-    if (currentIndex <= 0) return
-    const currentJob = jobs[currentIndex]
-    const previousJob = jobs[currentIndex - 1]
-    
-    const updates = [
-      supabase.from('jobs').update({ display_order: currentIndex - 1 }).eq('id', currentJob.id),
-      supabase.from('jobs').update({ display_order: currentIndex }).eq('id', previousJob.id)
-    ]
-
-    await Promise.all(updates)
-    fetchJobs()
-  }
-
-  const handleMoveDown = async (jobId: string) => {
-    const currentIndex = jobs.findIndex(j => j.id === jobId)
-    
-    if (currentIndex >= jobs.length - 1) return
-    const currentJob = jobs[currentIndex]
-    const nextJob = jobs[currentIndex + 1]
-    
-    const updates = [
-      supabase.from('jobs').update({ display_order: currentIndex + 1 }).eq('id', currentJob.id),
-      supabase.from('jobs').update({ display_order: currentIndex }).eq('id', nextJob.id)
-    ]
-
-    await Promise.all(updates)
-    fetchJobs()
-  }
-
-  const renderActionButtons = (job: Job, index: number, totalJobs: number) => {
-    const canDelete = ['machinist', 'designer', 'admin'].includes(userRole)
-    const canManagePriority = ['designer', 'admin'].includes(userRole)
-    
-    return (
-        <div className="flex items-center gap-2">
-            {job.status === 'Pending' && (
-                <Button 
-                    size="sm" 
-                    variant="secondary" 
-                    className="h-7 text-xs"
-                    onClick={() => handleClaim(job.id)}
-                >
-                    Claim
-                </Button>
-            )}
-            {job.status === 'In Progress' && (
-                <span className="text-xs text-gray-500 italic">Claimed</span>
-            )}
-            <div className="flex-grow"></div>
-            {canManagePriority && (
-                <>
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 w-7 p-0 text-xs"
-                        onClick={() => handleMoveUp(job.id)}
-                        disabled={index === 0}
-                    >
-                        ↑
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 w-7 p-0 text-xs"
-                        onClick={() => handleMoveDown(job.id)}
-                        disabled={index === totalJobs - 1}
-                    >
-                        ↓
-                    </Button>
-                </>
-            )}
-            {canDelete && (
-                <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
-                    onClick={() => handleDelete(job.id)}
-                >
-                    Delete
-                </Button>
-            )}
-        </div>
-    )
-  }
+  if (loading) return <div className="p-8 text-center text-funky-text">Loading dashboard...</div>
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8">
-      <header className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-funky-yellow">Machining Queue</h1>
-        <div className="flex items-center gap-4">
-            <Link href="/machinist">
-                <Button variant="outline" size="sm">My Active Jobs</Button>
-            </Link>
-        </div>
+    <div className="p-4 md:p-6 max-w-7xl mx-auto flex flex-col min-h-[calc(100vh-80px)]">
+      <header className="mb-6">
+        <h1 className="text-3xl font-bold text-funky-yellow">Dashboard</h1>
+        <p className="text-funky-text-dim">Welcome back to FunkyQueue.</p>
       </header>
 
-      <section className="space-y-4">
-        <Card className="bg-white text-black min-h-[400px] p-0 overflow-hidden">
-           <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-              <span className="font-bold text-lg">Queue</span>
-              <Link href="/queue/machining/add">
-                  <Button variant="primary" size="sm">Add Machining Job</Button>
-              </Link>
-           </div>
-           <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-gray-700 uppercase bg-gray-100">
-                      <tr>
-                          <th className="px-4 py-3">Part Name</th>
-                          <th className="px-4 py-3">Requester</th>
-                          <th className="px-4 py-3">Priority</th>
-                          <th className="px-4 py-3">Status</th>
-                          <th className="px-4 py-3">Est. Time</th>
-                          <th className="px-4 py-3">Action</th>
-                      </tr>
-                  </thead>
-                  <tbody>
-                      {jobs.map((job, index) => (
-                          <tr key={job.id} className="border-b border-gray-200 hover:bg-gray-50">
-                              <td className="px-4 py-3 font-medium">{job.part_name}</td>
-                              <td className="px-4 py-3">{job.requester}</td>
-                              <td className="px-4 py-3">
-                                  {['designer', 'admin'].includes(userRole) ? (
-                                      <select
-                                          className="px-2 py-1 rounded text-xs font-semibold border border-gray-300 bg-white"
-                                          value={job.priority}
-                                          onChange={(e) => handlePriorityChange(job.id, e.target.value)}
-                                      >
-                                          <option value="Urgent">Urgent</option>
-                                          <option value="High">High</option>
-                                          <option value="Medium">Medium</option>
-                                          <option value="Low">Low</option>
-                                      </select>
-                                  ) : (
-                                      <span className={`px-2 py-1 rounded-full text-xs font-semibold
-                                          ${job.priority === 'Urgent' ? 'bg-red-100 text-red-800' :
-                                            job.priority === 'High' ? 'bg-orange-100 text-orange-800' :
-                                            job.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                                            'bg-green-100 text-green-800'}`}>
-                                          {job.priority}
-                                      </span>
-                                  )}
-                              </td>
-                              <td className="px-4 py-3">
-                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold 
-                                      ${job.status === 'Completed' ? 'bg-green-100 text-green-800' : 
-                                        job.status === 'In Progress' ? 'bg-blue-100 text-blue-800' : 
-                                        'bg-yellow-100 text-yellow-800'}`}>
-                                      {job.status}
-                                  </span>
-                              </td>
-                              <td className="px-4 py-3">{job.est_time || '-'}</td>
-                              <td className="px-4 py-3">
-                                  {renderActionButtons(job, index, jobs.length)}
-                              </td>
-                          </tr>
-                      ))}
-                      {jobs.length === 0 && (
-                          <tr>
-                              <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                                  No Machining jobs in queue.
-                              </td>
-                          </tr>
-                      )}
-                  </tbody>
-              </table>
-           </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 flex-grow content-start">
+        <Card className="md:col-span-2 bg-funky-dark/50 border-funky-dark p-4 md:p-6">
+            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Activity className="text-funky-yellow" /> Quick Actions
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
+                <Link href="/queue/machining/add" className="contents">
+                    <Button variant="outline" className="h-20 md:h-24 flex flex-col gap-2 hover:bg-funky-yellow hover:text-black transition-all cursor-pointer">
+                        <PlusSquare size={24} />
+                        <span className="text-xs md:text-sm">Add Machining</span>
+                    </Button>
+                </Link>
+                <Link href="/queue/cam/add" className="contents">
+                    <Button variant="outline" className="h-20 md:h-24 flex flex-col gap-2 hover:bg-funky-yellow hover:text-black transition-all cursor-pointer">
+                        <PlusSquare size={24} />
+                        <span className="text-xs md:text-sm">Add CAM</span>
+                    </Button>
+                </Link>
+                <Link href="/machinist" className="contents">
+                    <Button variant="outline" className="h-20 md:h-24 flex flex-col gap-2 hover:bg-funky-yellow hover:text-black transition-all cursor-pointer">
+                        <Settings size={24} />
+                        <span className="text-xs md:text-sm">My Jobs</span>
+                    </Button>
+                </Link>
+                <Link href="/finished" className="contents">
+                    <Button variant="outline" className="h-20 md:h-24 flex flex-col gap-2 hover:bg-funky-yellow hover:text-black transition-all cursor-pointer">
+                        <CheckCircle size={24} />
+                        <span className="text-xs md:text-sm">Finished</span>
+                    </Button>
+                </Link>
+            </div>
         </Card>
-      </section>
+
+        <div className="grid grid-cols-2 md:grid-cols-1 md:grid-rows-2 gap-4 md:gap-6">
+            <Card className="bg-blue-900/20 border-blue-900/50 p-4 md:p-6 flex flex-col justify-center items-center hover:bg-blue-900/30 transition-colors cursor-pointer">
+                <span className="text-3xl md:text-4xl font-bold text-blue-400">{stats.activeJobs}</span>
+                <span className="text-xs md:text-sm text-blue-200 uppercase tracking-wider font-semibold mt-1 text-center">Active Jobs</span>
+            </Card>
+            <Card className="bg-green-900/20 border-green-900/50 p-4 md:p-6 flex flex-col justify-center items-center hover:bg-green-900/30 transition-colors cursor-pointer">
+                <span className="text-3xl md:text-4xl font-bold text-green-400">{stats.completedToday}</span>
+                <span className="text-xs md:text-sm text-green-200 uppercase tracking-wider font-semibold mt-1 text-center">Completed Today</span>
+            </Card>
+        </div>
+
+        <Card className="md:col-span-3 bg-funky-dark/30 border-funky-dark p-4 md:p-6 flex-grow md:flex-grow-0">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Clock className="text-funky-yellow" /> Recently Added
+                </h2>
+                <Link href="/machining">
+                    <Button variant="ghost" size="sm" className="text-funky-text-dim hover:text-white cursor-pointer">View All</Button>
+                </Link>
+            </div>
+            
+            <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-funky-text-dim uppercase bg-funky-dark/50">
+                        <tr>
+                            <th className="px-4 py-3 rounded-l-lg">Type</th>
+                            <th className="px-4 py-3">Part Name</th>
+                            <th className="px-4 py-3">Requester</th>
+                            <th className="px-4 py-3">Status</th>
+                            <th className="px-4 py-3 rounded-r-lg">Added</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {recentJobs.map((job) => (
+                            <tr key={job.id} className="border-b border-funky-dark/50 hover:bg-funky-dark/30 transition-colors cursor-pointer">
+                                <td className="px-4 py-3">
+                                    <span className={`text-xs font-bold px-2 py-1 rounded ${job.type === 'CAM' ? 'bg-purple-900/50 text-purple-300' : 'bg-blue-900/50 text-blue-300'}`}>
+                                        {job.type}
+                                    </span>
+                                </td>
+                                <td className="px-4 py-3 font-medium text-white">{job.part_name}</td>
+                                <td className="px-4 py-3 text-funky-text-dim">{job.requester}</td>
+                                <td className="px-4 py-3">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-semibold 
+                                        ${job.status === 'Completed' ? 'bg-green-900/30 text-green-400' : 
+                                          job.status === 'In Progress' ? 'bg-blue-900/30 text-blue-400' : 
+                                          'bg-yellow-900/30 text-yellow-400'}`}>
+                                        {job.status}
+                                    </span>
+                                </td>
+                                <td className="px-4 py-3 text-funky-text-dim">
+                                    {new Date(job.created_at).toLocaleDateString()}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            <div className="md:hidden space-y-3">
+                {recentJobs.map((job) => (
+                    <div key={job.id} className="bg-funky-dark/40 p-3 rounded-lg border border-funky-dark/50 flex flex-col gap-2 cursor-pointer active:bg-funky-dark/60 transition-colors">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider mb-1 inline-block ${job.type === 'CAM' ? 'bg-purple-900/50 text-purple-300' : 'bg-blue-900/50 text-blue-300'}`}>
+                                    {job.type}
+                                </span>
+                                <h3 className="font-bold text-white text-sm">{job.part_name}</h3>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold 
+                                ${job.status === 'Completed' ? 'bg-green-900/30 text-green-400' : 
+                                  job.status === 'In Progress' ? 'bg-blue-900/30 text-blue-400' : 
+                                  'bg-yellow-900/30 text-yellow-400'}`}>
+                                {job.status}
+                            </span>
+                        </div>
+                        <div className="flex justify-between text-xs text-funky-text-dim">
+                            <span>{job.requester}</span>
+                            <span>{new Date(job.created_at).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </Card>
+      </div>
     </div>
   )
 }
